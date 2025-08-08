@@ -1,0 +1,75 @@
+services:
+  # Database
+  database:
+    image: postgres:15-alpine
+    container_name: user-login-db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend
+  backend:
+    build:
+      context: ../
+      dockerfile: backend/Dockerfile
+    container_name: user-login-backend
+    environment:
+      # Server Configuration
+      API_PORT: ${API_PORT}
+      WS_PORT: ${WS_PORT}
+      WS_PATH: ${WS_PATH}
+      
+      # Database Configuration
+      DB_HOST: database
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@database:${DB_PORT}/${DB_NAME}?schema=public"
+      
+      # Application Configuration
+      NODE_ENV: ${NODE_ENV}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      
+      # Stats and Caching Configuration
+      STATS_AGGREGATION_INTERVAL: ${STATS_AGGREGATION_INTERVAL}
+      CACHE_TTL_MINUTES: ${CACHE_TTL_MINUTES}
+      
+      # Default Values Configuration
+      DEFAULT_FAKE_DATA_COUNT: ${DEFAULT_FAKE_DATA_COUNT}
+      DEFAULT_TOP_USERS_LIMIT: ${DEFAULT_TOP_USERS_LIMIT}
+      DEFAULT_LOGIN_TRENDS_DAYS: ${DEFAULT_LOGIN_TRENDS_DAYS}
+      
+      # Rate Limiting Configuration
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
+    ports:
+      - "${API_PORT}:${API_PORT}"
+      - "${WS_PORT}:${WS_PORT}"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  # Frontend
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: user-login-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

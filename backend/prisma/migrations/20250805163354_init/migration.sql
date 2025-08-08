@@ -1,0 +1,40 @@
+/*
+  Warnings:
+
+  - You are about to drop the `UserLogin` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+-- DropTable
+DROP TABLE "public"."UserLogin";
+
+-- CreateTable
+CREATE TABLE "public"."user_logins" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "login_time" TIMESTAMP(3) NOT NULL,
+    "logout_time" TIMESTAMP(3),
+    "session_duration_seconds" INTEGER,
+    "ip_address" TEXT NOT NULL,
+    "region" TEXT NOT NULL,
+    "device_type" TEXT NOT NULL,
+    "browser" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "user_logins_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "user_logins_user_id_idx" ON "public"."user_logins"("user_id");
+
+-- CreateIndex
+CREATE INDEX "user_logins_login_time_idx" ON "public"."user_logins"("login_time");
+
+-- CreateIndex
+CREATE INDEX "user_logins_region_idx" ON "public"."user_logins"("region");
+
+-- CreateIndex
+CREATE INDEX "user_logins_device_type_idx" ON "public"."user_logins"("device_type");
+
+-- CreateIndex
+CREATE INDEX "user_logins_browser_idx" ON "public"."user_logins"("browser");
