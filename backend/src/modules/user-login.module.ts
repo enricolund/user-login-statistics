@@ -8,10 +8,14 @@ import { PrismaService } from '../services/prisma.service';
 import { StatsAggregationService } from '../services/stats-aggregation.service';
 import { StatsCacheService } from '../services/stats-cache.service';
 import { HealthCheckService } from '../services/health-check.service';
+import { StatsModule } from './stats/stats.module';
+import { UserLoginsModule } from './user-logins/user-logins.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    StatsModule,
+    UserLoginsModule,
   ],
   controllers: [UserLoginController, HealthCheckController],
   providers: [
