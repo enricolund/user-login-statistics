@@ -1,20 +1,20 @@
-import { WebSocketServer as WSServer, WebSocket } from 'ws';
+import { WebSocketServer as WSServer } from 'ws';
 import { Injectable, Logger } from '@nestjs/common';
-import { UserLoginService } from '../services/user-login.service';
-
-interface WebSocketClient extends WebSocket {
-  id: string;
-  isAlive: boolean;
-}
+import { WebSocketClient } from './interfaces/websocket.interfaces';
+import { ClientManager } from './services/client-manager.service';
+import { MessageHandler } from './services/message-handler.service';
+import { StatsProvider } from './services/stats-provider.service';
 
 @Injectable()
 export class WebSocketServer {
   private wss!: WSServer;
   private readonly logger = new Logger(WebSocketServer.name);
-  private clients = new Map<string, WebSocketClient>();
-  private heartbeatInterval!: NodeJS.Timeout;
 
-  constructor(private readonly userLoginService: UserLoginService) {}
+  constructor(
+    private readonly clientManager: ClientManager,
+    private readonly messageHandler: MessageHandler,
+    private readonly statsProvider: StatsProvider
+  ) {}
 
   public start(port: number, path: string = '/ws') {
     this.logger.log(`Starting WebSocket server on port ${port} with path ${path}`);
@@ -39,21 +39,14 @@ export class WebSocketServer {
   }
 
   private handleConnection(ws: WebSocketClient) {
-    const clientId = this.generateClientId();
+    const clientId = this.clientManager.generateClientId();
     ws.id = clientId;
     ws.isAlive = true;
 
-    this.clients.set(clientId, ws);
-    this.logger.log(`Client connected: ${clientId}. Total clients: ${this.clients.size}`);
+    this.clientManager.addClient(ws);
 
     try {
-      const welcomeMessage = {
-        type: 'welcome',
-        message: 'Connected to User Login Statistics WebSocket',
-        clientId: clientId,
-        timestamp: new Date().toISOString()
-      };
-      
+      const welcomeMessage = this.messageHandler.createWelcomeMessage(clientId);
       ws.send(JSON.stringify(welcomeMessage));
       this.logger.log(`Welcome sent to client: ${clientId}`);
     } catch (error) {
@@ -77,7 +70,7 @@ export class WebSocketServer {
           message = { type: messageStr.trim() };
         }
         
-        this.handleMessage(ws, message);
+        this.messageHandler.handleMessage(ws, message);
       } catch (error) {
         this.logger.error(`Error handling message from ${clientId}:`, error);
         try {
@@ -92,106 +85,29 @@ export class WebSocketServer {
     });
 
     ws.on('close', () => {
-      this.clients.delete(clientId);
-      this.logger.log(`Client ${clientId} disconnected. Total: ${this.clients.size}`);
+      this.clientManager.removeClient(clientId);
     });
 
     ws.on('error', (error) => {
       this.logger.error(`WebSocket error for ${clientId}:`, error);
-      this.clients.delete(clientId);
+      this.clientManager.removeClient(clientId);
     });
   }
 
-  private async handleMessage(ws: WebSocketClient, message: any) {
-    this.logger.log(`Processing '${message.type}' from client ${ws.id}`);
-    
-    try {
-      let response;
-      
-      switch (message.type) {
-        case 'ping':
-          response = { type: 'pong', timestamp: new Date().toISOString() };
-          break;
-          
-        case 'request_initial_data':
-        case 'stats':
-        case 'get_stats':
-          response = {
-            type: 'stats_update',
-            payload: await this.getAggregatedStats(),
-            timestamp: new Date().toISOString()
-          };
-          break;
-          
-        case 'subscribe':
-          response = { 
-            type: 'subscribed', 
-            message: 'Subscribed to real-time updates',
-            timestamp: new Date().toISOString()
-          };
-          break;
-          
-        case 'status':
-        case 'info':
-          response = {
-            type: 'status',
-            data: {
-              activeClients: this.clients.size,
-              serverTime: new Date().toISOString()
-            }
-          };
-          break;
-          
-        default:
-          response = { 
-            type: 'error', 
-            error: `Unknown message type: ${message.type}`,
-            availableTypes: ['ping', 'request_initial_data', 'stats', 'subscribe', 'status'],
-            timestamp: new Date().toISOString()
-          };
-      }
-      
-      if (response && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(response));
-        this.logger.log(`Sent ${response.type} to client ${ws.id}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error processing message from ${ws.id}:`, error);
-      
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'error',
-          error: 'Internal server error',
-          timestamp: new Date().toISOString()
-        }));
-      }
-    }
-  }
-
   public async broadcastStatsUpdate() {
-    if (this.clients.size === 0) {
+    if (this.clientManager.getActiveConnectionCount() === 0) {
       return;
     }
 
     try {
-      const statsData = await this.getAggregatedStats();
+      const statsData = await this.statsProvider.getAggregatedStats();
       const message = {
         type: 'stats_update',
         payload: statsData,
       };
 
       const messageString = JSON.stringify(message);
-      let sentCount = 0;
-
-      for (const [clientId, client] of this.clients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(messageString);
-          sentCount++;
-        } else {
-          this.clients.delete(clientId);
-          this.logger.warn(`Removed disconnected client: ${clientId}`);
-        }
-      }
+      const sentCount = this.clientManager.broadcast(messageString);
 
       this.logger.log(`Broadcasted stats update to ${sentCount} clients`);
     } catch (error) {
@@ -199,70 +115,13 @@ export class WebSocketServer {
     }
   }
 
-  private async getAggregatedStats() {
-    const [deviceStats, regionStats, browserStats, allLogins] = await Promise.all([
-      this.userLoginService.getDeviceTypeStats(),
-      this.userLoginService.getRegionStats(), 
-      this.userLoginService.getBrowserStats(),
-      this.userLoginService.findAll(),
-    ]);
-
-    // Calculate basic metrics
-    const totalSessions = allLogins.length;
-    const totalUsers = new Set(allLogins.map(login => login.user_id)).size;
-    
-    // Calculate average session duration for sessions that have duration
-    const sessionsWithDuration = allLogins.filter(login => login.session_duration_seconds !== null);
-    const averageSessionDuration = sessionsWithDuration.length > 0 
-      ? sessionsWithDuration.reduce((sum, login) => sum + (login.session_duration_seconds || 0), 0) / sessionsWithDuration.length
-      : 0;
-
-    return {
-      totalSessions,
-      totalUsers,
-      averageSessionDuration,
-      deviceStats,
-      regionStats,
-      browserStats,
-    };
-  }
-
   private startHeartbeat() {
-    this.heartbeatInterval = setInterval(() => {
-      for (const [clientId, client] of this.clients) {
-        if (!client.isAlive) {
-          this.logger.warn(`Client ${clientId} failed heartbeat check, terminating`);
-          client.terminate();
-          this.clients.delete(clientId);
-          continue;
-        }
-
-        client.isAlive = false;
-        if (client.readyState === WebSocket.OPEN) {
-          client.ping();
-        }
-      }
-
-      this.logger.debug(`Heartbeat check completed. Active clients: ${this.clients.size}`);
-    }, 30000); // Check every 30 seconds
-  }
-
-  private generateClientId(): string {
-    return `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.clientManager.startHeartbeat();
   }
 
   public stop() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
-
-    // Close all client connections
-    for (const [, client] of this.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.close();
-      }
-    }
-    this.clients.clear();
+    this.clientManager.stopHeartbeat();
+    this.clientManager.closeAllConnections();
 
     if (this.wss) {
       this.wss.close();
@@ -273,11 +132,11 @@ export class WebSocketServer {
 
   // Public method to get connection count
   public getActiveConnectionCount(): number {
-    return this.clients.size;
+    return this.clientManager.getActiveConnectionCount();
   }
 
   // Public method to get client IDs
   public getActiveClientIds(): string[] {
-    return Array.from(this.clients.keys());
+    return this.clientManager.getActiveClientIds();
   }
 }
