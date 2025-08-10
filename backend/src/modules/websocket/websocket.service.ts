@@ -2,24 +2,22 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AVAILABLE_MESSAGE_TYPES, ClientMessage, RequestMessageType } from './websocket.interface';
 import { ServerResponse } from './websocket.interface';
 import { Cron } from '@nestjs/schedule/dist/decorators/cron.decorator';
-import { CronExpression } from '@nestjs/schedule';
 import { Server, Socket } from 'socket.io';
-import { StatsService } from '../stats/stats.service';
 import { Stats } from '../stats/stats.interface';
-import { CacheService } from '../../services/stats-cache.service';
+import { StatsService } from '../stats/stats.service';
+import { MyConfiguration } from '../../MyConfiguration';
 
 @Injectable()
 export class WebsocketService {
     constructor(
-        private readonly cacheManager: CacheService,
         private readonly statsService: StatsService,
     ) {}
-    private server: Server;
+    private server!: Server;
     private readonly clients: Map<string, Socket> = new Map();
     private readonly logger = new Logger(WebsocketService.name);
     private readonly handlers: Record<RequestMessageType, () => any> = {
         ping: () => this.handlePing(),
-        request_initial_data: () => this.requestInitialData(),
+        request_initial_data: () => this.requestData(),
     };
 
     setServer(server: Server) {
@@ -31,10 +29,9 @@ export class WebsocketService {
         if (handler) {
             this.sendResponseToClient(client.id, await handler());
         } else {
-            this.sendResponseToClient(
-                client.id,
-                { type: "error", message: `Unknown message type: ${message.type}. Available types: ${AVAILABLE_MESSAGE_TYPES}` }
-            );
+            this.sendResponseToClient(client.id, {
+                type: "error", message: `Unknown message type: ${message.type}. Available types: ${AVAILABLE_MESSAGE_TYPES}`
+            });
         }
     }
 
@@ -54,45 +51,25 @@ export class WebsocketService {
         };
     }
 
-    async requestInitialData(): Promise<ServerResponse> {
-        const cachedData = await this.cacheManager.get<Stats>('statsData');
-        if (cachedData) {
-            this.logger.log('Returning cached initial data');
-            return {
-                type: 'stats_update',
-                payload: cachedData,
-            };
-        }
-
-        const stats = await this.statsService.getAllStats();
-        await this.cacheManager.set(
-            'statsData',
-            { 
-                type: 'stats_update',
-                payload: stats,
-            }
-        );
-        return {
-            type: 'stats_update',
-            payload: stats,
-        };
+    async requestData(): Promise<Stats | undefined> {
+        const result = await this.statsService.getAggregatedStats();
+        return result;
     }
 
-    @Cron(CronExpression.EVERY_30_SECONDS)
+    @Cron(`*/${MyConfiguration.STATS_BROADCAST_INTERVAL_SECONDS()} * * * * *`)
     async fetchUpdatedData(): Promise<void> {
-        this.logger.log('Fetching updated data every 30 seconds');
-        const stats = await this.statsService.getAllStats();
+        this.logger.log('Broadcast fetched data');
+        const stats = await this.requestData();
         this.broadcastToAllClients({
             type: 'stats_update',
             payload: stats,
         });
-        await this.cacheManager.set('statsData', stats);
     }
 
     sendResponseToClient(clientId: string, response: ServerResponse): void {
         if (this.server) {
             this.server.to(clientId).emit('message', response);
-            this.logger.log(`Response sent to client ${clientId}: ${JSON.stringify(response)}`);
+            this.logger.log(`Response sent to client ${clientId}: ${response}`);
         } else {
             this.logger.error('WebSocket server is not initialized');
         }
