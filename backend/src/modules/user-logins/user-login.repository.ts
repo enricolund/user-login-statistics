@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
 import { UserLoginRepositoryInterface } from './repository.interface';
-import { SessionStats } from '../stats/stats.interface';
+import { BrowserStats, DeviceStats, RegionStats, SessionStats, StatsMap } from '../stats/stats.interface';
 import { UserLogin } from '../../generated/prisma';
 import { UserLoginCreate } from './user-login.interface';
 
@@ -10,72 +10,48 @@ export class UserLoginRepository implements UserLoginRepositoryInterface {
   constructor(private readonly prisma: PrismaService) {}
 
   async createUserLogin(data: UserLoginCreate): Promise<UserLogin> {
-    return this.prisma.userLogin.create({
-      data: data,
-    });
+    return this.prisma.userLogin.create({ data });
   }
 
   async createUserLogins(data: UserLoginCreate[]): Promise<{ count: number }> {
-    return this.prisma.userLogin.createMany({
-      data: data
-    });
+    return this.prisma.userLogin.createMany({ data });
   }
 
-  async getRegionStats(): Promise<{ region: string; count: number }[]> {
+  // Overloads
+  private async getStatsByField(field: 'region'): Promise<RegionStats[]>;
+  private async getStatsByField(field: 'device_type'): Promise<DeviceStats[]>;
+  private async getStatsByField(field: 'browser'): Promise<BrowserStats[]>;
+
+  // Implementation compatible with overloads
+  private async getStatsByField<T extends keyof StatsMap>(
+    field: T
+  ): Promise<StatsMap[T][]> {
     const result = await this.prisma.userLogin.groupBy({
-      by: ['region'],
-      _count: {
-        region: true,
-      },
-      orderBy: {
-        _count: {
-          region: 'desc',
-        },
-      },
+      by: [field],
+      _count: { [field]: true },
+      orderBy: { _count: { [field]: 'desc' } },
     });
 
+    if (!Array.isArray(result)) {
+      throw new Error(typeof result === 'string' ? result : 'Unexpected groupBy result');
+    }
+
     return result.map(item => ({
-      region: item.region,
-      count: item._count.region,
-    }));
+      [field]: item[field],
+      count: item._count[field],
+    })) as StatsMap[T][];
   }
 
-  async getDeviceTypeStats(): Promise<{ device_type: string; count: number }[]> {
-    const result = await this.prisma.userLogin.groupBy({
-      by: ['device_type'],
-      _count: {
-        device_type: true,
-      },
-      orderBy: {
-        _count: {
-          device_type: 'desc',
-        },
-      },
-    });
-
-    return result.map(item => ({
-      device_type: item.device_type,
-      count: item._count.device_type,
-    }));
+  async getRegionStats(): Promise<RegionStats[]> {
+    return this.getStatsByField('region');
   }
 
-  async getBrowserStats(): Promise<{ browser: string; count: number }[]> {
-    const result = await this.prisma.userLogin.groupBy({
-      by: ['browser'],
-      _count: {
-        browser: true,
-      },
-      orderBy: {
-        _count: {
-          browser: 'desc',
-        },
-      },
-    });
+  async getDeviceTypeStats(): Promise<DeviceStats[]> {
+    return this.getStatsByField('device_type');
+  }
 
-    return result.map(item => ({
-      browser: item.browser,
-      count: item._count.browser,
-    }));
+  async getBrowserStats(): Promise<BrowserStats[]> {
+    return this.getStatsByField('browser');
   }
 
   async getSessionStats(): Promise<SessionStats> {

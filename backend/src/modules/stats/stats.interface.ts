@@ -1,7 +1,14 @@
+export type StatsMap = {
+  region: RegionStats;
+  device_type: DeviceStats;
+  browser: BrowserStats;
+};
+
+
 export interface Stats {
-    deviceStats: DeviceStats[];
-    regionDeviceStats: RegionStats[];
-    sessionStats: SessionStats;
+  deviceStats: DeviceStats[];
+  regionDeviceStats: RegionStats[];
+  sessionStats: SessionStats;
 }
 
 export interface UserLoginStats {
