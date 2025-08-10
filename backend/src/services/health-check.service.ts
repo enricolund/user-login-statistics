@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+
 import { PrismaService } from './prisma.service';
 
 export interface IHealthStatus {
@@ -10,6 +11,7 @@ export interface IHealthStatus {
 
 @Injectable()
 export class HealthCheckService {
+  private readonly logger = new Logger(HealthCheckService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async checkHealth(): Promise<IHealthStatus> {
@@ -20,7 +22,7 @@ export class HealthCheckService {
       await this.prisma.$queryRaw`SELECT 1`;
       databaseHealthy = true;
     } catch (error) {
-      // Database is unhealthy
+      this.logger.error('Database health check failed', error);
     }
 
     return {
