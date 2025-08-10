@@ -15,6 +15,7 @@ export class WebsocketService {
         private readonly statsService: StatsService,
     ) {}
     private server: Server;
+    private readonly clients: Map<string, Socket> = new Map();
     private readonly logger = new Logger(WebsocketService.name);
     private readonly handlers: Record<RequestMessageType, () => any> = {
         ping: () => this.handlePing(),
@@ -35,6 +36,16 @@ export class WebsocketService {
                 { type: "error", message: `Unknown message type: ${message.type}. Available types: ${AVAILABLE_MESSAGE_TYPES}` }
             );
         }
+    }
+
+    handleConnection(client: Socket): void {
+        this.clients.set(client.id, client);
+        this.logger.log(`Client connected: ${client.id}`);
+    }
+
+    handleDisconnect(client: Socket): void {
+        this.clients.delete(client.id);
+        this.logger.log(`Client disconnected: ${client.id}`);
     }
 
     handlePing(): ServerResponse {

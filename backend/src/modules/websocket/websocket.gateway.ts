@@ -20,15 +20,15 @@ export class WebsocketGateway {
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.websocketService.handleConnection(client);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
+    this.websocketService.handleDisconnect(client);
   }
 
   @SubscribeMessage('message')
   async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: ClientMessage): Promise<void> {
-    this.websocketService.handleMessage(client, data)
+    this.websocketService.handleMessage(client, data);
   }
 }
