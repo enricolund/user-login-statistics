@@ -1,5 +1,5 @@
 import { UserLogin } from '../../generated/prisma';
-import { DeviceStats, RegionStats, BrowserStats, SessionStats } from '../stats/stats.interface';
+import { BrowserStats, DeviceStats, RegionStats, SessionStats } from '../stats/stats.interface';
 import { UserLoginCreate } from './user-login.interface';
 
 export interface UserLoginRepositoryInterface {

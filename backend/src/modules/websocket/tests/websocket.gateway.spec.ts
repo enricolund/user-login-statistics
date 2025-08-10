@@ -1,8 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Server, Socket } from 'socket.io';
-import { WebsocketGateway } from '../websocket.gateway';
+
 import { WebsocketService } from '../services/websocket.service';
+import { WebsocketGateway } from '../websocket.gateway';
 import { ClientMessage } from '../websocket.interface';
 
 // Mock MyConfiguration
@@ -41,17 +42,14 @@ describe('WebsocketGateway', () => {
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WebsocketGateway,
-        { provide: WebsocketService, useValue: mockWebsocketService },
-      ],
+      providers: [WebsocketGateway, { provide: WebsocketService, useValue: mockWebsocketService }],
     }).compile();
 
     gateway = module.get<WebsocketGateway>(WebsocketGateway);
-    
+
     // Set the server property
     gateway.server = mockServer;
-    
+
     // Mock logger
     loggerSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'warn').mockImplementation();
@@ -87,7 +85,7 @@ describe('WebsocketGateway', () => {
 
       // Verify that the connection handler was registered
       expect(mockServer.on).toHaveBeenCalledWith('connection', expect.any(Function));
-      
+
       // Simulate a connection
       mockConnectionCallback(mockSocket);
       expect(mockSocket.onAny).toHaveBeenCalledWith(expect.any(Function));
@@ -120,10 +118,7 @@ describe('WebsocketGateway', () => {
     });
 
     it('should handle different message types', async () => {
-      const messages: ClientMessage[] = [
-        { type: 'ping' },
-        { type: 'request_initial_data' },
-      ];
+      const messages: ClientMessage[] = [{ type: 'ping' }, { type: 'request_initial_data' }];
 
       for (const message of messages) {
         await gateway.handleMessage(mockSocket, message);
@@ -159,7 +154,7 @@ describe('WebsocketGateway', () => {
 
     it('should allow known events', () => {
       const warnSpy = jest.spyOn(Logger.prototype, 'warn');
-      
+
       // Simulate known event
       eventHandler('message');
 
@@ -169,24 +164,32 @@ describe('WebsocketGateway', () => {
 
     it('should disconnect client for unknown events', () => {
       const warnSpy = jest.spyOn(Logger.prototype, 'warn');
-      
+
       // Simulate unknown event
       eventHandler('unknown_event');
 
-      expect(warnSpy).toHaveBeenCalledWith('Unknown event received: unknown_event from client test-socket-123');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Unknown event received: unknown_event from client test-socket-123',
+      );
       expect(mockSocket.disconnect).toHaveBeenCalledWith(true);
     });
 
     it('should handle multiple unknown events', () => {
       const warnSpy = jest.spyOn(Logger.prototype, 'warn');
-      
+
       // Simulate multiple unknown events
       eventHandler('bad_event_1');
       eventHandler('bad_event_2');
 
       expect(warnSpy).toHaveBeenCalledTimes(2);
-      expect(warnSpy).toHaveBeenNthCalledWith(1, 'Unknown event received: bad_event_1 from client test-socket-123');
-      expect(warnSpy).toHaveBeenNthCalledWith(2, 'Unknown event received: bad_event_2 from client test-socket-123');
+      expect(warnSpy).toHaveBeenNthCalledWith(
+        1,
+        'Unknown event received: bad_event_1 from client test-socket-123',
+      );
+      expect(warnSpy).toHaveBeenNthCalledWith(
+        2,
+        'Unknown event received: bad_event_2 from client test-socket-123',
+      );
       expect(mockSocket.disconnect).toHaveBeenCalledTimes(2);
     });
   });
@@ -238,7 +241,9 @@ describe('WebsocketGateway', () => {
       const message: ClientMessage = { type: 'request_initial_data' };
 
       // The error should be propagated, not swallowed
-      await expect(gateway.handleMessage(mockSocket, message)).rejects.toThrow('Database connection failed');
+      await expect(gateway.handleMessage(mockSocket, message)).rejects.toThrow(
+        'Database connection failed',
+      );
       expect(mockWebsocketService.handleMessage).toHaveBeenCalledWith(mockSocket, message);
     });
   });

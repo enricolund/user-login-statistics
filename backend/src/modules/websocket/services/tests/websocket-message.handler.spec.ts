@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WebsocketMessageHandler } from '../websocket-message.handler';
+
+import { Stats } from '../../../stats/stats.interface';
 import { StatsService } from '../../../stats/stats.service';
 import { ClientMessage } from '../../websocket.interface';
-import { Stats } from '../../../stats/stats.interface';
+import { WebsocketMessageHandler } from '../websocket-message.handler';
 
 describe('WebsocketMessageHandler', () => {
   let service: WebsocketMessageHandler;
@@ -15,10 +16,7 @@ describe('WebsocketMessageHandler', () => {
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WebsocketMessageHandler,
-        { provide: StatsService, useValue: mockStatsService },
-      ],
+      providers: [WebsocketMessageHandler, { provide: StatsService, useValue: mockStatsService }],
     }).compile();
 
     service = module.get<WebsocketMessageHandler>(WebsocketMessageHandler);
@@ -52,8 +50,8 @@ describe('WebsocketMessageHandler', () => {
           averageDuration: 150,
           minDuration: 60,
           maxDuration: 300,
-          medianDuration: 120
-        }
+          medianDuration: 120,
+        },
       };
 
       mockStatsService.getAggregatedStats.mockResolvedValue(mockStats);
@@ -98,8 +96,8 @@ describe('WebsocketMessageHandler', () => {
           averageDuration: 120,
           minDuration: 30,
           maxDuration: 200,
-          medianDuration: 100
-        }
+          medianDuration: 100,
+        },
       };
 
       mockStatsService.getAggregatedStats.mockResolvedValue(mockStats);

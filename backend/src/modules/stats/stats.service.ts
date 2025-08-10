@@ -1,46 +1,62 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { Stats } from './stats.interface';
-import { UserLoginService } from '../user-logins/user-login.service';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+
 import { CacheService } from '../../services/stats-cache.service';
+import { UserLoginService } from '../user-logins/user-login.service';
+import { Stats } from './stats.interface';
 
 @Injectable()
 export class StatsService implements OnModuleInit {
-    constructor(
-        private readonly cacheService: CacheService,
-        private readonly userLoginService: UserLoginService
-    ) {}
+  private readonly logger = new Logger(StatsService.name);
 
-    async onModuleInit() {
-        // warm up the cache with initial stats data
-        const result = await this.getAggregatedStats();
-        await this.cacheService.set<Stats>('statsData', result);
-        console.log('StatsService initialized and cached initial stats data');
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly userLoginService: UserLoginService,
+  ) {}
+
+  async onModuleInit() {
+    this.logger.log('Warming up stats cache...');
+    try {
+      await this.warmUpCache();
+      this.logger.log('Stats cache warmed up successfully');
+    } catch (error) {
+      this.logger.error('Failed to warm up stats cache:', error);
+    }
+  }
+
+  private async warmUpCache(): Promise<void> {
+    const stats = await this.fetchFreshStats();
+    await this.cacheService.set<Stats>('statsData', stats);
+  }
+
+  private async fetchFreshStats(): Promise<Stats> {
+    this.logger.log('Fetching fresh stats data');
+    const [deviceStats, regionDeviceStats, sessionStats] = await Promise.all([
+      this.userLoginService.getDeviceTypeStats(),
+      this.userLoginService.getRegionStats(),
+      this.userLoginService.getSessionStats(),
+    ]);
+
+    return {
+      deviceStats,
+      regionDeviceStats,
+      sessionStats,
+    };
+  }
+
+  async getUpdatedStats(): Promise<Stats> {
+    const stats = await this.fetchFreshStats();
+    await this.cacheService.set<Stats>('statsData', stats);
+    return stats;
+  }
+
+  async getAggregatedStats(): Promise<Stats> {
+    const cachedData = await this.cacheService.get<Stats>('statsData');
+    if (cachedData) {
+      this.logger.debug('Returning cached stats data');
+      return cachedData;
     }
 
-    async getUpdatedStats(): Promise<Stats> {
-        console.log('Updating stats');
-        const result = await Promise.all([
-            this.userLoginService.getDeviceTypeStats(),
-            this.userLoginService.getRegionStats(),
-            this.userLoginService.getSessionStats(),
-        ]).then(([deviceStats, regionDeviceStats, sessionStats]) => ({
-            deviceStats,
-            regionDeviceStats,
-            sessionStats,
-        }));
-        await this.cacheService.set<Stats>('statsData', result);
-        return result;
-    }
-
-    async getAggregatedStats(): Promise<Stats> {
-        const cachedData = await this.cacheService.get<Stats>('statsData');
-        if (cachedData) {
-            console.log('Returning cached stats data');
-            return cachedData;
-        }
-
-        const freshData = await this.getUpdatedStats();
-        console.log('Returning fresh stats data');
-        return freshData;
-    }
+    this.logger.log('Cache miss - fetching fresh stats data');
+    return this.getUpdatedStats();
+  }
 }

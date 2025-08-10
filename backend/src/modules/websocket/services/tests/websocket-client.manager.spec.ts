@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+
 import { WebsocketClientManager } from '../websocket-client.manager';
 
 describe('WebsocketClientManager', () => {
@@ -93,7 +94,7 @@ describe('WebsocketClientManager', () => {
   describe('getAllClients', () => {
     it('should return empty map when no clients are added', () => {
       const clients = service.getAllClients();
-      
+
       expect(clients).toBeInstanceOf(Map);
       expect(clients.size).toBe(0);
     });
@@ -155,7 +156,7 @@ describe('WebsocketClientManager', () => {
     it('should maintain correct logging for multiple operations', () => {
       // Clear previous mock calls to ensure clean state
       loggerSpy.mockClear();
-      
+
       service.addClient('client-1', { id: 'client-1' });
       service.addClient('client-2', { id: 'client-2' });
       service.removeClient('client-1');

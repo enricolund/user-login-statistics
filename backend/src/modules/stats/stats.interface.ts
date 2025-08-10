@@ -4,7 +4,6 @@ export type StatsMap = {
   browser: BrowserStats;
 };
 
-
 export interface Stats {
   deviceStats: DeviceStats[];
   regionDeviceStats: RegionStats[];

@@ -1,8 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../services/prisma.service';
-import { UserLoginRepositoryInterface } from './repository.interface';
-import { BrowserStats, DeviceStats, RegionStats, SessionStats, StatsMap } from '../stats/stats.interface';
+
 import { UserLogin } from '../../generated/prisma';
+import { PrismaService } from '../../services/prisma.service';
+import {
+  BrowserStats,
+  DeviceStats,
+  RegionStats,
+  SessionStats,
+  StatsMap,
+} from '../stats/stats.interface';
+import { UserLoginRepositoryInterface } from './repository.interface';
 import { UserLoginCreate } from './user-login.interface';
 
 @Injectable()
@@ -23,9 +30,7 @@ export class UserLoginRepository implements UserLoginRepositoryInterface {
   private async getStatsByField(field: 'browser'): Promise<BrowserStats[]>;
 
   // Implementation compatible with overloads
-  private async getStatsByField<T extends keyof StatsMap>(
-    field: T
-  ): Promise<StatsMap[T][]> {
+  private async getStatsByField<T extends keyof StatsMap>(field: T): Promise<StatsMap[T][]> {
     const result = await this.prisma.userLogin.groupBy({
       by: [field],
       _count: { [field]: true },
@@ -36,7 +41,7 @@ export class UserLoginRepository implements UserLoginRepositoryInterface {
       throw new Error(typeof result === 'string' ? result : 'Unexpected groupBy result');
     }
 
-    return result.map(item => ({
+    return result.map((item) => ({
       [field]: item[field],
       count: item._count[field],
     })) as StatsMap[T][];
@@ -57,13 +62,15 @@ export class UserLoginRepository implements UserLoginRepositoryInterface {
   async getSessionStats(): Promise<SessionStats> {
     try {
       // Use raw SQL for better performance
-      const result = await this.prisma.$queryRaw<Array<{
-        total_sessions: bigint;
-        avg_duration: number;
-        min_duration: number;
-        max_duration: number;
-        median_duration: number;
-      }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{
+          total_sessions: bigint;
+          avg_duration: number;
+          min_duration: number;
+          max_duration: number;
+          median_duration: number;
+        }>
+      >`
         SELECT 
           COUNT(*) as total_sessions,
           COALESCE(AVG(session_duration_seconds), 0) as avg_duration,

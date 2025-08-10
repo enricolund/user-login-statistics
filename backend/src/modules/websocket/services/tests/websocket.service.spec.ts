@@ -1,11 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Server, Socket } from 'socket.io';
-import { WebsocketService } from '../websocket.service';
-import { WebsocketMessageHandler } from '../websocket-message.handler';
-import { WebsocketClientManager } from '../websocket-client.manager';
-import { ClientMessage, ServerResponse } from '../../websocket.interface';
+
 import { Stats } from '../../../stats/stats.interface';
+import { ClientMessage, ServerResponse } from '../../websocket.interface';
+import { WebsocketClientManager } from '../websocket-client.manager';
+import { WebsocketMessageHandler } from '../websocket-message.handler';
+import { WebsocketService } from '../websocket.service';
 
 describe('WebsocketService', () => {
   let service: WebsocketService;
@@ -45,7 +46,7 @@ describe('WebsocketService', () => {
     }).compile();
 
     service = module.get<WebsocketService>(WebsocketService);
-    
+
     // Mock logger
     loggerSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
@@ -62,8 +63,8 @@ describe('WebsocketService', () => {
   describe('setServer', () => {
     it('should set the server instance', () => {
       service.setServer(mockServer);
-      
-      // We can't directly access the private server property, 
+
+      // We can't directly access the private server property,
       // but we can test it indirectly through other methods
       expect(() => service.setServer(mockServer)).not.toThrow();
     });
@@ -89,7 +90,7 @@ describe('WebsocketService', () => {
     it('should process message and send response to client', async () => {
       const message: ClientMessage = { type: 'ping' };
       const response: ServerResponse = { type: 'pong' };
-      
+
       mockMessageHandler.handle.mockResolvedValue(response);
       service.setServer(mockServer);
 
@@ -103,7 +104,7 @@ describe('WebsocketService', () => {
     it('should handle message handler errors', async () => {
       const message: ClientMessage = { type: 'ping' };
       const error = new Error('Handler error');
-      
+
       mockMessageHandler.handle.mockRejectedValue(error);
       service.setServer(mockServer);
 
@@ -122,7 +123,7 @@ describe('WebsocketService', () => {
       expect(mockServer.to).toHaveBeenCalledWith('test-client-123');
       expect(mockServer.emit).toHaveBeenCalledWith('message', response);
       expect(loggerSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Response sent to client test-client-123')
+        expect.stringContaining('Response sent to client test-client-123'),
       );
     });
 
@@ -139,8 +140,8 @@ describe('WebsocketService', () => {
 
   describe('broadcastToAllClients', () => {
     it('should broadcast message to all clients when server is set', () => {
-      const response: ServerResponse = { 
-        type: 'stats_update', 
+      const response: ServerResponse = {
+        type: 'stats_update',
         payload: {
           deviceStats: [],
           regionDeviceStats: [],
@@ -149,9 +150,9 @@ describe('WebsocketService', () => {
             averageDuration: 0,
             minDuration: 0,
             maxDuration: 0,
-            medianDuration: 0
-          }
-        } as Stats 
+            medianDuration: 0,
+          },
+        } as Stats,
       };
       service.setServer(mockServer);
 
@@ -181,8 +182,8 @@ describe('WebsocketService', () => {
           averageDuration: 150,
           minDuration: 60,
           maxDuration: 300,
-          medianDuration: 120
-        }
+          medianDuration: 120,
+        },
       };
 
       mockMessageHandler.handleDataRequest.mockResolvedValue(mockStats);
@@ -234,7 +235,7 @@ describe('WebsocketService', () => {
       // Should not throw errors even without server
       expect(() => service.handleConnection(mockSocket)).not.toThrow();
       expect(() => service.handleDisconnect(mockSocket)).not.toThrow();
-      
+
       expect(mockClientManager.addClient).toHaveBeenCalled();
       expect(mockClientManager.removeClient).toHaveBeenCalled();
     });

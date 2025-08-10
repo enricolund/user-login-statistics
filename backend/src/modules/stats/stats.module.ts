@@ -1,7 +1,8 @@
 import { Logger, Module } from '@nestjs/common';
-import { StatsService } from './stats.service';
-import { UserLoginsModule } from '../user-logins/user-login.module';
+
 import { CacheService } from '../../services/stats-cache.service';
+import { UserLoginsModule } from '../user-logins/user-login.module';
+import { StatsService } from './stats.service';
 
 @Module({
   imports: [UserLoginsModule],

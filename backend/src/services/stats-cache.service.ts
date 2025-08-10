@@ -1,9 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { STATS_EVENTS } from '../events/stats-events';
+
 import { MyConfiguration } from '../MyConfiguration';
-import { IStatsCacheService, CacheInfo } from '../interfaces/cache.interface';
+import { STATS_EVENTS } from '../events/stats-events';
+import { CacheInfo, IStatsCacheService } from '../interfaces/cache.interface';
 
 interface CachedStats {
   deviceStats: { device_type: string; count: number }[];
@@ -80,7 +81,7 @@ export class StatsCacheService implements OnModuleInit, IStatsCacheService {
 
   async refreshCache(): Promise<void> {
     this.logger.log('Refreshing cache...');
-    
+
     try {
       const [deviceStats, regionStats, browserStats] = await Promise.all([
         this.userLoginRepo.getDeviceTypeCounts(),
@@ -117,13 +118,13 @@ export class StatsCacheService implements OnModuleInit, IStatsCacheService {
 
   private isCacheExpired(): boolean {
     if (!this.cachedStats) return true;
-    
+
     const now = new Date();
     const cacheAge = now.getTime() - this.cachedStats.lastUpdated.getTime();
     return cacheAge > this.CACHE_TTL_MS;
   }
 
-  getCacheInfo(): CacheInfo { 
+  getCacheInfo(): CacheInfo {
     if (!this.cachedStats) {
       return {
         isCached: false,
