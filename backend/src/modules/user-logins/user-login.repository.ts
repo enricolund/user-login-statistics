@@ -103,7 +103,6 @@ export class UserLoginRepository implements UserLoginRepositoryInterface {
         medianDuration: Number(stats.median_duration),
       };
     } catch (error) {
-      console.error('Error executing raw SQL for session duration stats:', error);
       return {
         totalSessions: 0,
         averageDuration: 0,
