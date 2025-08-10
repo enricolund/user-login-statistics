@@ -1,10 +1,11 @@
 module.exports = {
   // DEFAULT CONFIGURATIONS
   parser: "typescript",
-  printWidth: 80,
+  printWidth: 100,
   semi: true,
   tabWidth: 2,
   trailingComma: "all",
+  singleQuote: true,
 
   // PLUG-IN CONFIGURATIONS
   plugins: ["@trivago/prettier-plugin-sort-imports"],

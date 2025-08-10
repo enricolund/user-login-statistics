@@ -1,22 +1,23 @@
 import { faker } from '@faker-js/faker';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+
+import { MyConfiguration } from '../MyConfiguration';
 import { UserLoginCreate } from '../modules/user-logins/user-login.interface';
 import { UserLoginService } from '../modules/user-logins/user-login.service';
-import { Cron } from '@nestjs/schedule';
-import { Injectable, Logger } from '@nestjs/common';
-import { MyConfiguration } from '../MyConfiguration';
 
 @Injectable()
 export class GenerateUserLoginData {
   constructor(private readonly userLoginService: UserLoginService) {}
   private readonly logger = new Logger(GenerateUserLoginData.name);
-  
+
   private generateOne(): UserLoginCreate {
     const loginTime = faker.date.recent({ days: 30 });
-    const logoutTime = faker.datatype.boolean(0.8) 
+    const logoutTime = faker.datatype.boolean(0.8)
       ? faker.date.between({ from: loginTime, to: new Date() })
       : null;
-    
-    const sessionDuration = logoutTime 
+
+    const sessionDuration = logoutTime
       ? Math.floor((logoutTime.getTime() - loginTime.getTime()) / 1000)
       : null;
 
@@ -39,7 +40,8 @@ export class GenerateUserLoginData {
   async generateMany(): Promise<void> {
     const count = MyConfiguration.FAKE_DATA_COUNT();
     this.logger.log(`Generating ${count} user login records`);
-    await this.userLoginService.createUserLogins(Array.from({ length: count }, () => this.generateOne()));
+    await this.userLoginService.createUserLogins(
+      Array.from({ length: count }, () => this.generateOne()),
+    );
   }
-
 }
