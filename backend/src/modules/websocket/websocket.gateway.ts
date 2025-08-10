@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { WebsocketService } from './websocket.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { MyConfiguration } from '../../MyConfiguration';
-import { ClientMessage } from './interfaces/websocket.interface';
+import { ClientMessage } from './websocket.interface';
 
 @WebSocketGateway(MyConfiguration.WS_PORT())
 @Injectable()
@@ -16,6 +16,7 @@ export class WebsocketGateway {
 
   afterInit() {
     this.logger.log('WebSocket server initialized');
+    this.websocketService.setServer(this.server);
   }
 
   handleConnection(client: Socket) {
@@ -28,21 +29,6 @@ export class WebsocketGateway {
 
   @SubscribeMessage('message')
   async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: ClientMessage): Promise<void> {
-    this.logger.log(`Message received from ${client.id}: ${JSON.stringify(data)}`);
-    if (!data || !data.type) {
-      client.emit('message', 'Invalid message format');
-      return;
-    }
-    switch (data.type) {
-      case 'ping':
-        client.emit('message', { type: 'pong' });
-        break;
-      case 'request_initial_data':
-        const initialDataResponse = await this.websocketService.requestInitialData();
-        client.emit('message', initialDataResponse);
-        break;
-      default:
-        client.emit('message', `Unknown message type: ${data.type}`);
-    }
+    this.websocketService.handleMessage(client, data)
   }
 }
