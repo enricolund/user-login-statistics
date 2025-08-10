@@ -28,7 +28,8 @@ export namespace MyConfiguration {
   export const CACHE_TTL_MS = () => Number(MyGlobal.env.CACHE_TTL_MINUTES) * 60 * 1000;
   
   // Default Values Configuration
-  export const DEFAULT_FAKE_DATA_COUNT = () => Number(MyGlobal.env.DEFAULT_FAKE_DATA_COUNT);
+  export const FAKE_DATA_COUNT = () => Number(MyGlobal.env.FAKE_DATA_COUNT);
+  export const FAKE_DATA_IMPORT_INTERVAL_SECONDS = () => Number(MyGlobal.env.FAKE_DATA_IMPORT_INTERVAL_SECONDS || 30);
   export const DEFAULT_TOP_USERS_LIMIT = () => Number(MyGlobal.env.DEFAULT_TOP_USERS_LIMIT);
   export const DEFAULT_LOGIN_TRENDS_DAYS = () => Number(MyGlobal.env.DEFAULT_LOGIN_TRENDS_DAYS);
 

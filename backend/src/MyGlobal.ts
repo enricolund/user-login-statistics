@@ -26,7 +26,8 @@ export namespace MyGlobal {
     STATS_AGGREGATION_INTERVAL: `${number}`;
     CACHE_TTL_MINUTES: `${number}`;
     
-    DEFAULT_FAKE_DATA_COUNT: `${number}`;
+    FAKE_DATA_COUNT: `${number}`;
+    FAKE_DATA_IMPORT_INTERVAL_SECONDS?: `${number}`;
     DEFAULT_TOP_USERS_LIMIT: `${number}`;
     DEFAULT_LOGIN_TRENDS_DAYS: `${number}`;
     
