@@ -3,17 +3,25 @@ import { UserLoginRepository } from './user-login.repository';
 import { BrowserStats, DeviceStats, RegionStats, SessionStats } from '../stats/stats.interface';
 import { UserLogin } from '../../generated/prisma';
 import { UserLoginCreate } from './user-login.interface';
+import { CacheService } from '../../services/stats-cache.service';
 
 @Injectable()
 export class UserLoginService {
-    constructor(private readonly userLoginRepository: UserLoginRepository) {}
+    constructor(
+        private readonly cacheManager: CacheService,
+        private readonly userLoginRepository: UserLoginRepository,
+    ) {}
 
-    createUserLogin(data: UserLoginCreate): Promise<UserLogin> {
-        return this.userLoginRepository.createUserLogin(data);
+    async createUserLogin(data: UserLoginCreate): Promise<UserLogin> {
+        const result = await this.userLoginRepository.createUserLogin(data);
+        await this.cacheManager.del('statsData');
+        return result;
     }
 
-    createUserLogins(data: UserLoginCreate[]): Promise<{ count: number }> {
-        return this.userLoginRepository.createUserLogins(data);
+    async createUserLogins(data: UserLoginCreate[]): Promise<{ count: number }> {
+        const result = await this.userLoginRepository.createUserLogins(data);
+        await this.cacheManager.del('statsData');
+        return result;
     }
 
     getRegionStats(): Promise<RegionStats[]> {
