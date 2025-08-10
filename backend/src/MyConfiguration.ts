@@ -8,6 +8,7 @@ export namespace MyConfiguration {
   export const API_PORT = () => Number(MyGlobal.env.API_PORT);
   export const WS_PORT = () => Number(MyGlobal.env.WS_PORT);
   export const WS_PATH = () => MyGlobal.env.WS_PATH;
+  export const WS_EVENT_NAME = () => MyGlobal.env.WS_EVENT_NAME || 'message';
   
   // Database Configuration
   export const DB_HOST = () => MyGlobal.env.DB_HOST;
@@ -24,7 +25,7 @@ export namespace MyConfiguration {
   export const IS_TEST = () => NODE_ENV() === "test";
   
   // Stats and Caching Configuration
-  export const STATS_AGGREGATION_INTERVAL_SECONDS = () => Number(MyGlobal.env.STATS_AGGREGATION_INTERVAL);
+  export const STATS_BROADCAST_INTERVAL_SECONDS = () => Number(MyGlobal.env.STATS_BROADCAST_INTERVAL_SECONDS || 60);
   export const CACHE_TTL_MS = () => Number(MyGlobal.env.CACHE_TTL_MINUTES) * 60 * 1000;
   
   // Default Values Configuration

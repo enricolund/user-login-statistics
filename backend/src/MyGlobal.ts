@@ -23,7 +23,7 @@ export namespace MyGlobal {
     
     NODE_ENV: "development" | "production" | "test";
     
-    STATS_AGGREGATION_INTERVAL: `${number}`;
+    STATS_BROADCAST_INTERVAL_SECONDS: `${number}`;
     CACHE_TTL_MINUTES: `${number}`;
     
     FAKE_DATA_COUNT: `${number}`;
@@ -32,6 +32,7 @@ export namespace MyGlobal {
     DEFAULT_LOGIN_TRENDS_DAYS: `${number}`;
     
     WS_PATH: string;
+    WS_EVENT_NAME: string;
     
     RATE_LIMIT_MAX_REQUESTS?: `${number}`;
     RATE_LIMIT_WINDOW_MS?: `${number}`;
