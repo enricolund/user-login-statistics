@@ -2,10 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
 import { UserLoginRepositoryInterface } from './repository.interface';
 import { SessionStats } from '../stats/stats.interface';
+import { UserLogin } from '../../generated/prisma';
+import { UserLoginCreate } from './user-login.interface';
 
 @Injectable()
 export class UserLoginRepository implements UserLoginRepositoryInterface {
   constructor(private readonly prisma: PrismaService) {}
+
+  async createUserLogin(data: UserLoginCreate): Promise<UserLogin> {
+    return this.prisma.userLogin.create({
+      data: data,
+    });
+  }
+
+  async createUserLogins(data: UserLoginCreate[]): Promise<{ count: number }> {
+    return this.prisma.userLogin.createMany({
+      data: data
+    });
+  }
 
   async getRegionStats(): Promise<{ region: string; count: number }[]> {
     const result = await this.prisma.userLogin.groupBy({
