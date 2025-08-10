@@ -17,7 +17,20 @@ export class WebsocketGateway {
   afterInit() {
     this.logger.log('WebSocket server initialized');
     this.websocketService.setServer(this.server);
-  }
+    
+    // Handle unknown events at the server level
+    this.server.on('connection', (socket) => {
+        socket.onAny((eventName, ..._args) => {
+            // Filter out Socket.IO internal events and known events
+            const allowedEventName = [MyConfiguration.WS_EVENT_NAME()];
+
+            if (!allowedEventName.includes(eventName)) {
+                this.logger.warn(`Unknown event received: ${eventName} from client ${socket.id}`);
+                socket.disconnect(true);
+            }
+        });
+    });
+}
 
   handleConnection(client: Socket) {
     this.websocketService.handleConnection(client);
@@ -27,7 +40,7 @@ export class WebsocketGateway {
     this.websocketService.handleDisconnect(client);
   }
 
-  @SubscribeMessage('message')
+  @SubscribeMessage(MyConfiguration.WS_EVENT_NAME())
   async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: ClientMessage): Promise<void> {
     this.websocketService.handleMessage(client, data);
   }
