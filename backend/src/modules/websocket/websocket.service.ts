@@ -1,25 +1,40 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { AVAILABLE_MESSAGE_TYPES, ClientMessage, RequestMessageType } from './interfaces/websocket.interface';
-import { ServerResponse } from './interfaces/websocket.interface';
+import { AVAILABLE_MESSAGE_TYPES, ClientMessage, RequestMessageType } from './websocket.interface';
+import { ServerResponse } from './websocket.interface';
 import { Cron } from '@nestjs/schedule/dist/decorators/cron.decorator';
 import { CronExpression } from '@nestjs/schedule';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { Server, Socket } from 'socket.io';
+import { StatsService } from '../stats/stats.service';
+import { Stats } from '../stats/stats.interface';
 
 @Injectable()
 export class WebsocketService {
-    constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
+    constructor(
+        @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+        private readonly statsService: StatsService,
+    ) {}
+    private server: Server;
     private readonly logger = new Logger(WebsocketService.name);
     private readonly handlers: Record<RequestMessageType, () => any> = {
         ping: () => this.handlePing(),
         request_initial_data: () => this.requestInitialData(),
     };
 
-    handleMessage(message: ClientMessage): ServerResponse | string {
+    setServer(server: Server) {
+        this.server = server;
+    }
+
+    async handleMessage(client: Socket, message: ClientMessage): Promise<void> {
         const handler = this.handlers[message.type];
         if (handler) {
-            return handler();
+            this.sendResponseToClient(client.id, await handler());
+        } else {
+            this.sendResponseToClient(
+                client.id,
+                { type: "error", message: `Unknown message type: ${message.type}. Available types: ${AVAILABLE_MESSAGE_TYPES}` }
+            );
         }
-        return `Unknown message type: ${message.type}. Available types: ${AVAILABLE_MESSAGE_TYPES}`;
     }
 
     handlePing(): ServerResponse {
@@ -29,21 +44,62 @@ export class WebsocketService {
     }
 
     async requestInitialData(): Promise<ServerResponse> {
-        // Fetch and return initial data
-        // const initialData = await this.fetchInitialData();
-        await this.cacheManager.set('initialData', { type: 'stats_update',
-            payload: { deviceStats: [], regionDeviceStats: [], sessionStats: [] }, });
+        const cachedData: Stats | undefined = await this.cacheManager.get('statsData');
+        if (cachedData) {
+            this.logger.log('Returning cached initial data');
+            return {
+                type: 'stats_update',
+                payload: cachedData,
+            };
+        }
+
+        const stats = await this.statsService.getAllStats();
+        await this.cacheManager.set(
+            'statsData',
+            { 
+                type: 'stats_update',
+                payload: stats,
+            }
+        );
         return {
             type: 'stats_update',
-            payload: { deviceStats: [], regionDeviceStats: [], sessionStats: [] },
+            payload: stats,
         };
     }
 
-    @Cron(CronExpression.EVERY_10_SECONDS)
+    @Cron(CronExpression.EVERY_30_SECONDS)
     async fetchUpdatedData(): Promise<void> {
-        // Fetch and return updated data
-        this.logger.log('Fetching updated data every 10 seconds');
-        this.logger.log(await this.cacheManager.get('initialData'));
+        this.logger.log('Fetching updated data every 30 seconds');
+        const stats = await this.statsService.getAllStats();
+        this.broadcastToAllClients({
+            type: 'stats_update',
+            payload: stats,
+        });
+        await this.setCachedData(stats);
     }
 
+    async getCachedData(): Promise<Stats | undefined> {
+        return this.cacheManager.get<Stats>('statsData');
+    }
+
+    async setCachedData(stats: Stats): Promise<void> {
+        await this.cacheManager.set('statsData', stats);
+    }
+
+    sendResponseToClient(clientId: string, response: ServerResponse): void {
+        if (this.server) {
+            this.server.to(clientId).emit('message', response);
+            this.logger.log(`Response sent to client ${clientId}: ${JSON.stringify(response)}`);
+        } else {
+            this.logger.error('WebSocket server is not initialized');
+        }
+    }
+
+    broadcastToAllClients(response: ServerResponse): void {
+        if (this.server) {
+            this.server.emit('message', response);
+        } else {
+            this.logger.error('WebSocket server is not initialized');
+        }
+    }
 }
