@@ -1,6 +1,6 @@
 import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { WebsocketService } from './websocket.service';
+import { WebsocketService } from './services/websocket.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { MyConfiguration } from '../../MyConfiguration';
 import { ClientMessage } from './websocket.interface';
