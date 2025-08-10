@@ -1,17 +1,17 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AVAILABLE_MESSAGE_TYPES, ClientMessage, RequestMessageType } from './websocket.interface';
 import { ServerResponse } from './websocket.interface';
 import { Cron } from '@nestjs/schedule/dist/decorators/cron.decorator';
 import { CronExpression } from '@nestjs/schedule';
-import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Server, Socket } from 'socket.io';
 import { StatsService } from '../stats/stats.service';
 import { Stats } from '../stats/stats.interface';
+import { CacheService } from '../../services/stats-cache.service';
 
 @Injectable()
 export class WebsocketService {
     constructor(
-        @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+        private readonly cacheManager: CacheService,
         private readonly statsService: StatsService,
     ) {}
     private server: Server;
@@ -55,7 +55,7 @@ export class WebsocketService {
     }
 
     async requestInitialData(): Promise<ServerResponse> {
-        const cachedData: Stats | undefined = await this.cacheManager.get('statsData');
+        const cachedData = await this.cacheManager.get<Stats>('statsData');
         if (cachedData) {
             this.logger.log('Returning cached initial data');
             return {
@@ -86,14 +86,6 @@ export class WebsocketService {
             type: 'stats_update',
             payload: stats,
         });
-        await this.setCachedData(stats);
-    }
-
-    async getCachedData(): Promise<Stats | undefined> {
-        return this.cacheManager.get<Stats>('statsData');
-    }
-
-    async setCachedData(stats: Stats): Promise<void> {
         await this.cacheManager.set('statsData', stats);
     }
 

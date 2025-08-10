@@ -1,6 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UserLoginRepository } from '../repositories/user-login.repository';
 import { STATS_EVENTS } from '../events/stats-events';
 import { MyConfiguration } from '../MyConfiguration';
 import { IStatsCacheService, CacheInfo } from '../interfaces/cache.interface';
@@ -13,13 +13,30 @@ interface CachedStats {
 }
 
 @Injectable()
+export class CacheService {
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+
+  async get<T>(key: string): Promise<T | undefined> {
+    return this.cacheManager.get<T>(key);
+  }
+
+  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
+    await this.cacheManager.set(key, value, ttl);
+  }
+
+  async del(key: string): Promise<void> {
+    await this.cacheManager.del(key);
+  }
+}
+
+@Injectable()
 export class StatsCacheService implements OnModuleInit, IStatsCacheService {
   private readonly logger = new Logger(StatsCacheService.name);
   private cachedStats: CachedStats | null = null;
   private readonly CACHE_TTL_MS = MyConfiguration.CACHE_TTL_MS();
 
   constructor(
-    private readonly userLoginRepo: UserLoginRepository,
+    private readonly userLoginRepo: any,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
