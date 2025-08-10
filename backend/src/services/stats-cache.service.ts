@@ -20,8 +20,8 @@ export class CacheService {
     return this.cacheManager.get<T>(key);
   }
 
-  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
-    await this.cacheManager.set(key, value, ttl);
+  async set<T>(key: string, value: T): Promise<void> {
+    await this.cacheManager.set(key, value, MyConfiguration.CACHE_TTL_MS());
   }
 
   async del(key: string): Promise<void> {
