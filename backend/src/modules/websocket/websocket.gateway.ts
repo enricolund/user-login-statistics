@@ -42,6 +42,6 @@ export class WebsocketGateway {
 
   @SubscribeMessage(MyConfiguration.WS_EVENT_NAME())
   async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: ClientMessage): Promise<void> {
-    this.websocketService.handleMessage(client, data);
+    await this.websocketService.handleMessage(client, data);
   }
 }
