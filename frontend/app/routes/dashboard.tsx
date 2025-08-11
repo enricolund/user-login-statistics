@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import type { Route } from "./+types/dashboard";
 
 export function meta({}: Route.MetaArgs) {
@@ -35,11 +36,9 @@ interface PeakHour {
 
 interface StatsData {
   totalSessions: number;
-  totalUsers: number;
   averageSessionDuration: number;
   deviceStats: DeviceStat[];
   regionStats: RegionStat[];
-  browserStats: BrowserStat[];
   loginTrends?: LoginTrend[];
   peakHours?: PeakHour[];
 }
@@ -55,96 +54,65 @@ export default function Dashboard() {
   const [statsData, setStatsData] = useState<StatsData | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Fallback to HTTP API if WebSocket fails
-  const fetchStatsHTTP = useCallback(async () => {
-    try {
-      console.log('Fetching stats via HTTP...');
-      const response = await fetch('http://localhost:37001/logins/stats');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Fetched stats via HTTP:', data);
-        setStatsData(data);
-        setLastUpdated(new Date());
-      } else {
-        console.error('HTTP fetch failed with status:', response.status);
-      }
-    } catch (error) {
-      console.error('HTTP fetch error:', error);
-    }
-  }, []);
-
-  const connectWebSocket = useCallback(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
+  const connectSocketIO = useCallback(() => {
+    if (socket && socket.connected) {
       return; // Already connected
     }
-
     setConnectionStatus('connecting');
-    
-    // In production, this would be the actual server URL
-    const wsUrl = 'ws://localhost:37002/ws';
-    const ws = new WebSocket(wsUrl);
+    // In production, use your actual backend URL
+  const wsPort = import.meta.env.WS_PORT || 3002;
+  const socketUrl = `http://localhost:${wsPort}`;
+    const sock = io(socketUrl, { transports: ['websocket'] });
 
-    ws.onopen = () => {
-      console.log('WebSocket connected');
+    sock.on('connect', () => {
+      console.log('Socket.IO connected');
       setConnectionStatus('connected');
-      setSocket(ws);
-      
+      setSocket(sock);
       // Request initial data
-      ws.send(JSON.stringify({ type: 'request_initial_data' }));
-    };
+  sock.emit('message', { type: 'request_initial_data' });
+    });
 
-    ws.onmessage = (event) => {
-      try {
-        const message: StatsUpdateMessage = JSON.parse(event.data);
-        console.log('WebSocket message received:', message);
-        if (message.type === 'stats_update') {
-          setStatsData(message.payload);
-          setLastUpdated(new Date());
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
+    sock.on('message', (payload: StatsUpdateMessage) => {
+      console.log('Socket.IO message:', payload);
+      // Transform payload to match expected statsData structure
+      const raw = payload.payload as any;
+      const statsData: StatsData = {
+        deviceStats: raw.deviceStats || [],
+        regionStats: raw.regionDeviceStats || [],
+        totalSessions: (raw.sessionStats && raw.sessionStats.totalSessions) || 0,
+        averageSessionDuration: (raw.sessionStats && raw.sessionStats.averageDuration) || 0,
+        loginTrends: raw.loginTrends || [],
+        peakHours: raw.peakHours || [],
+      };
+      setStatsData(statsData);
+      setLastUpdated(new Date());
+    });
 
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
+    sock.on('disconnect', () => {
+      console.log('Socket.IO disconnected');
       setConnectionStatus('disconnected');
       setSocket(null);
-      
-      // Only fallback to HTTP if we haven't received data yet
-      if (!statsData) {
-        fetchStatsHTTP().catch(console.error);
-      }
-      
-      // Attempt to reconnect after 3 seconds
-      setTimeout(connectWebSocket, 3000);
-    };
+    });
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+    sock.on('connect_error', (error) => {
+      console.error('Socket.IO connect_error:', error);
       setConnectionStatus('error');
-      
-      // Only fallback to HTTP if we haven't received data yet
-      if (!statsData) {
-        fetchStatsHTTP().catch(console.error);
-      }
-    };
-  }, [socket, fetchStatsHTTP]);
+      setSocket(null);
+    });
+  }, [socket, statsData]);
 
   useEffect(() => {
     console.log('Dashboard component mounted');
-    
-    // Try WebSocket first
-    connectWebSocket();
-
+    connectSocketIO();
     return () => {
       if (socket) {
-        socket.close();
+        socket.disconnect();
       }
     };
-  }, []); // Empty dependency array to run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -220,12 +188,6 @@ export default function Dashboard() {
                   <div className="text-sm text-gray-600">Total Sessions</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {statsData?.totalUsers?.toLocaleString() || '0'}
-                  </div>
-                  <div className="text-sm text-gray-600">Total Users</div>
-                </div>
-                <div>
                   <div className="text-lg font-semibold text-gray-700">
                     {formatDuration(statsData?.averageSessionDuration || 0)}
                   </div>
@@ -276,23 +238,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Browser Stats */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Browser Usage</h2>
-              <div className="space-y-3">
-                {statsData?.browserStats?.slice(0, 8).map((stat, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-gray-700">{stat.browser}</span>
-                    <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm font-medium">
-                      {stat.count.toLocaleString()}
-                    </div>
-                  </div>
-                )) || (
-                  <div className="text-gray-500 text-sm">No browser data available</div>
-                )}
-              </div>
-            </div>
-
             {/* Peak Hours */}
             {statsData.peakHours && statsData.peakHours.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
@@ -339,7 +284,7 @@ export default function Dashboard() {
         {/* Manual Refresh Button */}
         <div className="mt-6 text-center">
           <button
-            onClick={connectWebSocket}
+            onClick={connectSocketIO}
             disabled={connectionStatus === 'connecting'}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium"
           >
