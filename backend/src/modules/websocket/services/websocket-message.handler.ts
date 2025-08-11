@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 
-import { Stats } from '../../stats/stats.interface';
 import { StatsService } from '../../stats/stats.service';
 import {
   AVAILABLE_MESSAGE_TYPES,
@@ -36,8 +35,11 @@ export class WebsocketMessageHandler {
     };
   }
 
-  async handleDataRequest(): Promise<Stats | undefined> {
+  async handleDataRequest(): Promise<ServerResponse> {
     const result = await this.statsService.getAggregatedStats();
-    return result;
+    return {
+      type: 'stats_update',
+      payload: result,
+    };
   }
 }

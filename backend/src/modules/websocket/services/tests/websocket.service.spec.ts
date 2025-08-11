@@ -185,18 +185,18 @@ describe('WebsocketService', () => {
           medianDuration: 120,
         },
       };
-
-      mockMessageHandler.handleDataRequest.mockResolvedValue(mockStats);
+      const mockResponse: ServerResponse = {
+        type: 'stats_update',
+        payload: mockStats,
+      };
+      mockMessageHandler.handleDataRequest.mockResolvedValue(mockResponse);
       service.setServer(mockServer);
 
       await service.fetchUpdatedData();
 
       expect(loggerSpy).toHaveBeenCalledWith('Broadcast fetched data');
       expect(mockMessageHandler.handleDataRequest).toHaveBeenCalled();
-      expect(mockServer.emit).toHaveBeenCalledWith('message', {
-        type: 'stats_update',
-        payload: mockStats,
-      });
+      expect(mockServer.emit).toHaveBeenCalledWith('message', mockResponse);
     });
 
     it('should handle errors when fetching data', async () => {

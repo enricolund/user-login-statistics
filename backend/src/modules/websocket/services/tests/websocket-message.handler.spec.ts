@@ -61,7 +61,10 @@ describe('WebsocketMessageHandler', () => {
       const result = await service.handle(message);
 
       expect(mockStatsService.getAggregatedStats).toHaveBeenCalled();
-      expect(result).toEqual(mockStats);
+      expect(result).toEqual({
+        type: 'stats_update',
+        payload: mockStats,
+      });
     });
 
     it('should handle unknown message type', async () => {
@@ -105,7 +108,10 @@ describe('WebsocketMessageHandler', () => {
       const result = await service.handleDataRequest();
 
       expect(mockStatsService.getAggregatedStats).toHaveBeenCalled();
-      expect(result).toEqual(mockStats);
+      expect(result).toEqual({
+        type: 'stats_update',
+        payload: mockStats,
+      });
     });
 
     it('should handle service error gracefully', async () => {

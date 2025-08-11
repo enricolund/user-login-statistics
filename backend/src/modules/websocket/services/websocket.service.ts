@@ -38,10 +38,7 @@ export class WebsocketService {
   async fetchUpdatedData(): Promise<void> {
     this.logger.log('Broadcast fetched data');
     const stats = await this.messageHandler.handleDataRequest();
-    this.broadcastToAllClients({
-      type: 'stats_update',
-      payload: stats,
-    });
+    this.broadcastToAllClients(stats);
   }
 
   sendResponseToClient(clientId: string, response: ServerResponse): void {
