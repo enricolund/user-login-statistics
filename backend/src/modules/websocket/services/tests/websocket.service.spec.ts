@@ -26,6 +26,7 @@ describe('WebsocketService', () => {
     mockClientManager = {
       addClient: jest.fn(),
       removeClient: jest.fn(),
+      getAllClients: jest.fn().mockReturnValue(new Set(['test-client-123'])),
     } as any;
 
     mockServer = {

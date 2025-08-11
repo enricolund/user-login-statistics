@@ -52,7 +52,11 @@ export class WebsocketService {
 
   broadcastToAllClients(response: ServerResponse): void {
     if (this.server) {
-      this.server.emit('message', response);
+      if (this.clientManager.getAllClients().size) {
+        this.server.emit('message', response);
+      } else {
+        this.logger.warn('No connected clients to broadcast to');
+      }
     } else {
       this.logger.error('WebSocket server is not initialized');
     }
