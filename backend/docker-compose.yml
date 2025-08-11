@@ -1,0 +1,58 @@
+services:
+  # Database
+  database:
+    image: postgres:15-alpine
+    container_name: user-login-db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend
+  backend:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: user-login-backend
+    environment:
+      # Database Configuration
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public"
+
+      # Server Configuration
+      API_PORT: ${API_PORT}
+      WS_PORT: ${WS_PORT}
+      WS_PATH: ${WS_PATH}
+      WS_EVENT_NAME: ${WS_EVENT_NAME}
+
+      # Application Configuration
+      NODE_ENV: ${NODE_ENV}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      
+      # Stats and Caching Configuration
+      STATS_BROADCAST_INTERVAL_SECONDS: ${STATS_BROADCAST_INTERVAL_SECONDS}
+      CACHE_TTL_MINUTES: ${CACHE_TTL_MINUTES}
+
+      # Fake Data Configuration
+      FAKE_DATA_COUNT: ${FAKE_DATA_COUNT}
+      FAKE_DATA_IMPORT_INTERVAL_SECONDS: ${FAKE_DATA_IMPORT_INTERVAL_SECONDS}
+    ports:
+      - "${API_PORT}:${API_PORT}"
+      - "${WS_PORT}:${WS_PORT}"
+    depends_on:
+      - database
+volumes:
+  postgres_data:
