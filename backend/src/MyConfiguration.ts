@@ -31,12 +31,6 @@ export namespace MyConfiguration {
   // Default Values Configuration
   export const FAKE_DATA_COUNT = () => Number(MyGlobal.env.FAKE_DATA_COUNT);
   export const FAKE_DATA_IMPORT_INTERVAL_SECONDS = () => Number(MyGlobal.env.FAKE_DATA_IMPORT_INTERVAL_SECONDS || 30);
-  export const DEFAULT_TOP_USERS_LIMIT = () => Number(MyGlobal.env.DEFAULT_TOP_USERS_LIMIT);
-  export const DEFAULT_LOGIN_TRENDS_DAYS = () => Number(MyGlobal.env.DEFAULT_LOGIN_TRENDS_DAYS);
-
-  // Rate Limiting Configuration
-  export const RATE_LIMIT_MAX_REQUESTS = () => Number(MyGlobal.env.RATE_LIMIT_MAX_REQUESTS || 100);
-  export const RATE_LIMIT_WINDOW_MS = () => Number(MyGlobal.env.RATE_LIMIT_WINDOW_MS || 60000);
   
   // CORS Configuration
   export const CORS_ORIGINS = () => MyGlobal.env.CORS_ORIGINS || 'http://localhost:3000';
